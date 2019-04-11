@@ -1,0 +1,236 @@
+<title>#maelstrom1001</title>
+
+<div id='container'></div>
+
+<div id='current-streams-list'></div>
+
+<script>
+
+GetGames(
+		'Final Fantasy', 
+		'Final Fantasy II', 
+		'Final Fantasy I %26 II%3A Dawn of Souls', 
+		'Final Fantasy Origins', 
+		'Final Fantasy IV', 
+		'Golden Sun', 
+		'Chrono Trigger', 
+		'Dragon Warrior', 
+		'Dragon Warrior II', 
+		'The Final Fantasy Legend',
+		'Final Fantasy Legend II',
+		'Final Fantasy III',
+		'Fire Emblem',
+		'Fire Emblem%3A The Sacred Stones',
+		'Breath of Fire',
+		'Final Fantasy V',
+		'Final Fantasy Tactics',
+	function(games) {
+	var state = {
+		users: {},
+		streams: {},
+	};
+	function f() {
+		GetStreams(games, function(streams) {
+			for (var id in state.streams) {
+				var flag = false;
+				if (streams.find(function(stream) {
+					return id === stream['user_id'];
+				})) {
+					flag = true;
+				}
+				if (!flag) {
+					state.streams[id].streamDivHandle.remove();
+					delete state.streams[id];
+				}
+			}
+			var newStreams = [];
+			while (streams.length > 0) {
+				var stream = streams.shift();
+				if (state.streams[stream['user_id']]) {
+					state.streams[stream['user_id']].thumbnailImgHandle.src = stream['thumbnail_url'].replace('{height}', '180').replace('{width}', '320') + '?t=' + new Date().getTime();
+					state.streams[stream['user_id']].streamTitleDivHandle.innerHTML = stream.title;
+				} else {
+					newStreams.push(stream);
+				}
+			}
+			streams = newStreams;
+			if (streams.length === 0) {
+				return;
+			}
+			GetUsers(streams, function(users) {
+				streams.forEach(function(stream) {
+					var user = users.find(function(user) {
+						return user.id === stream['user_id'];
+					});
+					var gameName = games.find(function(game) {
+						return game.id === stream['game_id'];
+					}).name;
+					state.streams[stream['user_id']] = stream;
+					state.users[user.id] = user;
+					var streamDiv = document.createElement('div');
+					streamDiv.setAttribute('class', 'stream');
+					var thumbnailDiv = document.createElement('div');
+					thumbnailDiv.setAttribute('class', 'thumbnail');
+					var channelAnchor = document.createElement('a');
+					channelAnchor.href = 'https://www.twitch.tv/' + user.login;
+					var thumbnailImg = document.createElement('img');
+					thumbnailImg.src = stream['thumbnail_url'].replace('{height}', '180').replace('{width}', '320') + '?t=' + new Date().getTime();
+					channelAnchor.appendChild(thumbnailImg);
+					state.streams[stream['user_id']].thumbnailImgHandle = thumbnailImg;
+					thumbnailDiv.appendChild(channelAnchor);
+					streamDiv.appendChild(thumbnailDiv);
+					var streamTitleDiv = document.createElement('div');
+					streamTitleDiv.setAttribute('class', 'title');
+					streamTitleDiv.innerHTML = stream.title;
+					streamDiv.appendChild(streamTitleDiv);
+					state.streams[stream['user_id']].streamTitleDivHandle = streamTitleDiv;
+					var streamChannel = document.createElement('div');
+					streamChannel.setAttribute('class', 'channel');
+					streamChannel.innerHTML = user['display_name'];
+					streamDiv.appendChild(streamChannel);
+					var streamGame = document.createElement('div');
+					streamGame.innerHTML = gameName;
+					streamDiv.appendChild(streamGame);
+					document.getElementById('container').appendChild(streamDiv);
+					state.streams[stream['user_id']].streamDivHandle = streamDiv;
+					
+					var newStreamDiv = document.createElement('div');
+					newStreamDiv.setAttribute('class', 'stream-item');
+					var gameNameDiv = document.createElement('div');
+					gameNameDiv.setAttribute('class', 'game-name');
+					gameNameDiv.innerHTML = gameName;
+					newStreamDiv.appendChild(gameNameDiv);
+					var channelNameDiv = document.createElement('div');
+					channelNameDiv.innerHTML = user['display_name'];
+					newStreamDiv.appendChild(channelNameDiv);
+					var titleDiv = document.createElement('div');
+					titleDiv.innerHTML = stream.title;
+					newStreamDiv.appendChild(titleDiv);
+					var currentStreamsListDiv = document.getElementById('current-streams-list');
+					currentStreamsListDiv.appendChild(newStreamDiv);
+				});
+			});
+		});
+	};
+	f();
+	setInterval(f, 60000);
+});
+
+function fetch(url) {
+	var call = arguments[1];
+	var CLIENT_ID = '<insert-client-id>';
+	var xhr = new XMLHttpRequest();
+	xhr.onreadystatechange = function() {
+		if (xhr.readyState !== 4) {
+			return;
+		}
+		call(JSON.parse(xhr.responseText));
+	};
+	xhr.open('GET', url);
+	xhr.setRequestHeader('Client-ID', CLIENT_ID);
+	xhr.responseType = 'text';
+	xhr.send();
+}
+
+function GetGames() {
+	var url = 'https://api.twitch.tv/helix/games?';
+	for (var i = 0; i < arguments.length - 1; i++) {
+		url += 'name=' + arguments[i] + '&';
+	}
+	var call = arguments[arguments.length - 1];
+	fetch(url, function(games) {
+		call(games.data);
+	});
+}
+
+function GetStreams(games) {
+	var url = 'https://api.twitch.tv/helix/streams?';
+	games.forEach(function(game) {
+		url += 'game_id=' + game.id + '&';
+	});
+	var call = arguments[1];
+	fetch(url, function(streams) {
+		call(streams.data);
+	});
+}
+
+function GetUsers(streams) {
+	var url = 'https://api.twitch.tv/helix/users?';
+	streams.forEach(function(stream) {
+		url += 'id=' + stream['user_id'] + '&';
+	});
+	var call = arguments[1];
+	fetch(url, function(users) {
+		call(users.data);
+	});
+}
+
+setInterval(function() {
+	fetch('https://api.twitch.tv/helix/streams?user_login=livemint', function(streams) {
+		if (streams.data.length > 0) {
+			var stream = streams.data[0];
+			var newStreamDiv = document.createElement('div');
+			newStreamDiv.setAttribute('class', 'stream-item');
+			var gameNameDiv = document.createElement('div');
+			gameNameDiv.setAttribute('class', 'game-name');
+			gameNameDiv.innerHTML = stream['game_id'];
+			newStreamDiv.appendChild(gameNameDiv);
+			var channelNameDiv = document.createElement('div');
+			channelNameDiv.innerHTML = stream['user_id'];
+			newStreamDiv.appendChild(channelNameDiv);
+			var titleDiv = document.createElement('div');
+			titleDiv.innerHTML = stream.title;
+			newStreamDiv.appendChild(titleDiv);
+			var currentStreamsListDiv = document.getElementById('current-streams-list');
+			currentStreamsListDiv.appendChild(newStreamDiv);
+		}
+	});
+}, 60000);
+
+</script>
+
+<style>
+#container {
+	padding-left: 20px;
+	margin-right: 300px;
+	height: 100%;
+	width: 75%;
+	overflow-y: scroll;
+}
+
+#container .stream {
+	float: left;
+	width: 320px;
+	height: 290px;
+	margin-right: 30px;
+	margin-bottom: 30px;
+}
+
+#container .thumbnail {
+	margin-bottom: 10px;
+}
+
+#container .title {
+	font-weight: bold;
+	margin-bottom: 5px;
+}
+
+#container .channel {
+	margin-bottom: 5px;
+}
+
+#current-streams-list {
+	position: absolute; 
+	width: 400px;
+	bottom: 50px; 
+	right: 30px;
+}
+
+#current-streams-list .stream-item {
+	margin-bottom: 10px;
+}
+
+#current-streams-list .game-name {
+	font-weight: bold;
+}
+</style>
